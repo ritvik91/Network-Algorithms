@@ -4,7 +4,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -18,18 +17,15 @@ public class VirtualFM {
 	private static final int FM_SKETCH_SIZE = 32;
 	private static final double PHI = 0.77351;
 	
-	int[] physicalBitMap;
+	int[] bitMap;
 	int[] vBitMap;
 	Map<String,Map<Integer,Integer>> outputMap;
 	
 	public VirtualFM() {
-		this.physicalBitMap = new int[PHYSICAL_MAP_SIZE];
+		this.bitMap = new int[PHYSICAL_MAP_SIZE];
 		this.vBitMap = new int[PHYSICAL_MAP_SIZE];
 		this.outputMap = new HashMap<String,Map<Integer,Integer>>();
-		initialize_virtual_bit_map();
-	}
-	
-	private void initialize_virtual_bit_map() {
+
 		Random r = new Random();
 		for (int i = 0; i < vBitMap.length; i++) {
 			vBitMap[i] = r.nextInt(PHYSICAL_MAP_SIZE);
@@ -40,15 +36,12 @@ public class VirtualFM {
 		
 		actual.forEach((source,v)->{
 			int actualCardinality = v.size();
-			this.physicalBitMap = new int[PHYSICAL_MAP_SIZE];
+			this.bitMap = new int[PHYSICAL_MAP_SIZE];
 			v.forEach((dest,flow) -> {
 				fillPhysicalBitMap(source, dest);	
 			});
-			double zAvg = getZerosInPhysicalBitMap() / PHYSICAL_MAP_SIZE;
-			int estimated  = (int)(PHYSICAL_MAP_SIZE * (Math.pow(2 , zAvg)) / PHI); 
-			if(estimated > 2.5){
-				estimated = (int)(PHYSICAL_MAP_SIZE * (Math.pow(2 , zAvg) - Math.pow(2, -1.75 * zAvg)) / PHI);
-			}
+			double z = getZerosInBitMap() / PHYSICAL_MAP_SIZE;
+			int estimated  = (int)(PHYSICAL_MAP_SIZE * (Math.pow(2 , z)) / PHI); 
 			
 			Map<Integer,Integer> destMap = new HashMap<Integer,Integer>();
 			destMap.put(actualCardinality, (int)estimated);
@@ -59,10 +52,10 @@ public class VirtualFM {
 		plotWriteOutput();
 	}
 	
-	private double getZerosInPhysicalBitMap(){
+	private double getZerosInBitMap(){
 		double numberOfZeros = 0;
-		for(int i = 0 ; i < physicalBitMap.length ; i++){
-			int fmSketch = physicalBitMap[i];
+		for(int i = 0 ; i < bitMap.length ; i++){
+			int fmSketch = bitMap[i];
 			int setBits = 0;
 			while(fmSketch > 0) {
 				if((fmSketch & 1) == 1){break;}
@@ -76,23 +69,31 @@ public class VirtualFM {
 	}
 	
 	private void fillPhysicalBitMap(String sourceIP, String destinationIP) {
-		int virtualBitMapIndex = (destinationIP.hashCode() & 0x7fffffff) % FM_SKETCH_SIZE;
+		int virtualBitMapIndex = destinationIP.hashCode() % FM_SKETCH_SIZE;
 
 		long physicalBitHashValue = (Long.parseLong(sourceIP.replace(
 				".", "")) ^ vBitMap[virtualBitMapIndex]);
-		int physicalBitMapIndex = (String.valueOf(physicalBitHashValue)
-				.hashCode() & 0x7fffffff) % PHYSICAL_MAP_SIZE;
+		int physicalBitMapIndex = (int)(Long.valueOf(physicalBitHashValue).hashCode() % PHYSICAL_MAP_SIZE);
 		
-		int fmSketch = physicalBitMap[physicalBitMapIndex];
-		physicalBitMap[physicalBitMapIndex] = (fmSketch | (1 << calculateGeometricHashing(destinationIP)));
+		int fmSketch = bitMap[physicalBitMapIndex];
+		bitMap[physicalBitMapIndex] = (fmSketch | (1 << getFMSketchBitToSet(destinationIP)));
 	}
 	
-	private int calculateGeometricHashing(String destinationIP){	
-		int hashedValue = (destinationIP.hashCode() & 0x7fffffff);
+	/**
+	 * function for geometric hashing to get the bit to be set in FM Sketch
+	 * @param destinationIP
+	 * @return
+	 */
+	private int getFMSketchBitToSet(String destinationIP){	
+		int hashedValue = destinationIP.hashCode();
 		int rightMostSetBit =  (int)((Math.log10(hashedValue & -hashedValue)) / Math.log10(2));
 		return rightMostSetBit;		
 	}
 
+	/**
+	 * function to plot the result graph and write output to file
+	 * @throws IOException
+	 */
 private void plotWriteOutput() throws IOException {
 		
 		File file = new File(Constants.OUTPUT_V_FM);
