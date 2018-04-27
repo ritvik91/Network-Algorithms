@@ -11,7 +11,6 @@ import java.util.Random;
 
 import Util.Constants;
 import Util.EmptyCountSetException;
-import Util.FileHandler;
 import Util.GraphPlot;
 
 public class countMin {
@@ -62,9 +61,6 @@ public class countMin {
 	
 	public void BuildCountMin(Map<String,Map<String,Integer>> actual) throws IOException, EmptyCountSetException {
 		
-		//actual-estimated map for source|Destination pair
-		Map<Integer,Integer> destMap;
-		
 		actual.forEach((k,v)->{
 			v.forEach((dest,flow) -> {
 //				String SourceDestinationPair = k + Constants.SEPERATOR + dest;
@@ -103,24 +99,6 @@ public class countMin {
 		
 		GraphPlot gp = new GraphPlot("Count Min", graph);
 		gp.setVisible(true);
-		
-		File file = new File(outputPath);
-		FileWriter fw = new FileWriter(file.getAbsoluteFile());
-		BufferedWriter bw = new BufferedWriter(fw);
-		
-		if (!file.exists()) {
-			file.createNewFile();
-		}
-		
-		
-		for(Entry<String,Map<Integer,Integer>> e : outputMap.entrySet()) {
-			for(Entry<Integer,Integer> Flow : e.getValue().entrySet()) {
-				bw.write(e.getKey() +"\t" + Flow.getKey() + "\t" + Flow.getValue());
-				bw.newLine();
-			}
-		}
-		
-		bw.close();
 		
 	}
 	
